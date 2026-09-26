@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+static/audio/
+static/input_*
+.DS_Store
