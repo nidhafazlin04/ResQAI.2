@@ -7,7 +7,6 @@ from math import radians, sin, cos, sqrt, atan2
 from pathlib import Path
 
 import pandas as pd
-import whisper
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from flask_cors import CORS
 from gtts import gTTS
@@ -35,9 +34,6 @@ client = OpenAI(
     api_key=GROQ_API_KEY
 ) if GROQ_API_KEY else None
 
-print("Loading Whisper model...")
-whisper_model = whisper.load_model("base")
-print("Whisper ready.")
 
 alerts = []
 pending_queue = []
@@ -168,10 +164,6 @@ def ai_triage(message):
     except Exception as e:
         print("AI error:", e)
         return keyword_fallback_triage(message)
-
-def voice_to_text(audio_path):
-    result = whisper_model.transcribe(audio_path, fp16=False)
-    return result["text"].strip()
 
 def internet_available(timeout=2.0):
     try:
@@ -359,11 +351,6 @@ def triage():
 
     return jsonify(ai_triage(message))
 
-@app.post("/api/emergency")
-def emergency():
-    message = str(request.form.get("message", "")).strip()
-    latitude = float(request.form.get("latitude", "0"))
-    longitude = float(request.form.get("longitude", "0"))
     audio = request.files.get("audio")
 
     if audio:
@@ -377,24 +364,6 @@ def emergency():
                 audio_path.unlink(missing_ok=True)
             except Exception:
                 pass
-
-    if not message:
-        return jsonify({"error": "Type a message or record your voice."}), 400
-
-    alert = create_alert(message, latitude, longitude)
-    dispatch_alert(alert)
-
-    try:
-        voice_url = create_responder_voice(alert)
-    except Exception as e:
-        print("TTS error:", e)
-        voice_url = None
-
-    alert["voice_url"] = voice_url
-    alert["status"] = "SENT"
-    alerts.append(alert)
-
-    return jsonify(alert)
 
 @app.post("/api/acknowledge")
 def acknowledge():
